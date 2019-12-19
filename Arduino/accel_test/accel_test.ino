@@ -4,17 +4,17 @@
 #include <Adafruit_Sensor.h>  // not used in this demo but required!
 
 // i2c
-//Adafruit_LSM9DS1 lsm = Adafruit_LSM9DS1();
+Adafruit_LSM9DS1 lsm = Adafruit_LSM9DS1();
 
-#define LSM9DS1_SCK 13    // SCL
-#define LSM9DS1_MISO 12   // SDA
-#define LSM9DS1_MOSI 9   // SDOAG/SDOM
-#define LSM9DS1_XGCS 11   // CSAG
-#define LSM9DS1_MCS 10    // CSM
+//#define LSM9DS1_SCK 13    // SCL
+//#define LSM9DS1_MISO 12   // SDA
+//#define LSM9DS1_MOSI 9   // SDOAG/SDOM
+//#define LSM9DS1_XGCS 11   // CSAG
+//#define LSM9DS1_MCS 10    // CSM
 
 
 //// You can also use software SPI
-Adafruit_LSM9DS1 lsm = Adafruit_LSM9DS1(LSM9DS1_SCK, LSM9DS1_MISO, LSM9DS1_MOSI, LSM9DS1_XGCS, LSM9DS1_MCS);
+//Adafruit_LSM9DS1 lsm = Adafruit_LSM9DS1(LSM9DS1_SCK, LSM9DS1_MISO, LSM9DS1_MOSI, LSM9DS1_XGCS, LSM9DS1_MCS);
 
 void setupSensor()
 {

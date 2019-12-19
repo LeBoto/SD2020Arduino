@@ -4,11 +4,13 @@
 // Thermometer/Altimeter: BPM388
 // GPS: Ultimate GPS Breakout v3
 // Accelerometer: LSM9DS1 9-DOF
+#include <SoftwareSerial.h>
 #include <Wire.h>
 #include <SPI.h>
+#include <SD.h>
+#include <avr/sleep.h>
 #include <Adafruit_GPS.h>
 #include <Adafruit_Sensor.h>
-#include <SoftwareSerial.h>
 #include "Adafruit_BMP3XX.h"
 #include <Adafruit_LSM9DS1.h>
 // *******************GPS SETUP*******************
@@ -27,8 +29,29 @@ Adafruit_BMP3XX bmp(BMP_CS, BMP_MOSI, BMP_MISO,  BMP_SCK);
 // *******************ACCEL SETUP*******************
 Adafruit_LSM9DS1 lsm = Adafruit_LSM9DS1();
 
-char dat[10];
-char dat_string[100];
+# define BUFF 100
+#define chipSelect 4
+#define ledPin 13
+
+char aMessage[BUFF]; 
+char cha;
+byte messageSize;
+File logfile;
+
+void error(uint8_t errno) {
+  while(1) {
+    uint8_t i;
+    for (i=0; i<errno; i++) {
+      digitalWrite(ledPin, HIGH);
+      delay(100);
+      digitalWrite(ledPin, LOW);
+      delay(100);
+    }
+    for (i=errno; i<10; i++) {
+      delay(200);
+    }
+  }
+}
 
 void accSensor()
 {
@@ -38,11 +61,34 @@ void accSensor()
 }
 void setup() {
   Serial.begin(115200);
-  while (!Serial);
-  // Start temp/alt
+//  while (!Serial);
   if (!bmp.begin()) {
     digitalWrite(13, HIGH);
     while (1);
+  }
+  if (!lsm.begin())
+  {
+    while (1);
+  }
+  accSensor();
+  if (!SD.begin(chipSelect)) {
+    Serial.println("Card init. failed!");
+    error(2);
+  }
+  char filename[15];
+  strcpy(filename, "GPSLOG00.TXT");
+  for (uint8_t i = 0; i < 100; i++) {
+    filename[6] = '0' + i/10;
+    filename[7] = '0' + i%10;
+    // create if does not exist, do not open existing, write, sync after write
+    if (! SD.exists(filename)) {
+      break;
+    }
+  }
+  Serial.println(filename);
+  logfile = SD.open(filename, FILE_WRITE);
+  if( ! logfile ) {
+    error(3);
   }
   // Set up oversampling and filter initialization
   bmp.setTemperatureOversampling(BMP3_OVERSAMPLING_8X);
@@ -54,32 +100,32 @@ void setup() {
   // you can send various commands to get it started
   GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);
   GPS.sendCommand(PMTK_SET_NMEA_UPDATE_10HZ);
-  if (!lsm.begin())
-  {
-    digitalWrite(13, HIGH);
-    while (1);
-  }
-  accSensor();
 }
 
 void loop() {
-  strcpy(dat_string, "beep,");
-//  if (GPS.newNMEAreceived()) {
-//    strcpy(dat_string, "boop,");
-//    char *stringptr = GPS.lastNMEA();
-//  
-//    if (!GPS.parse(stringptr))   // this also sets the newNMEAreceived() flag to false
-//        return;
-//    strcat(dat_string, stringptr);
-//  }
-  while (mySerial.available()) {
-    char c = mySerial.read();
-    Serial.write(c);
-//    strcat(dat_string, c);
-  }
+  if (mySerial.available()) {
+    for (int c = 0; c <BUFF;c++) aMessage[c]=0;      // clear aMessage in prep for new message
+    messageSize = 0;                                 // set message size to zero
+
+    while (mySerial.available()) {            // loop through while data is available
+      cha = mySerial.read();                  // get character
+      aMessage[messageSize]=cha;              // append to aMessage
+      messageSize++;                          // bump message size
+      delay(10);                              // just to slow the reads down a bit
+    } // while
+    aMessage[messageSize]='\n';               // set last character to a null
+//    Serial.println(aMessage);
+    uint8_t stringsize = strlen(aMessage);
+    Serial.println(stringsize);
+    if (stringsize != logfile.write((uint8_t *)aMessage, stringsize))    //write the string to the SD file
+        error(4);
+    if (strstr(aMessage, "RMC"))   logfile.flush();
+  } // if available
   lsm.read();
   sensors_event_t a, m, g, temp;
   lsm.getEvent(&a, &m, &g, &temp);
+}
+
 //  dtostrf(bmp.temperature * 9.0/5.0 + 32.0, 3, 3, dat);
 //  strcat(dat_string, dat);
 //  strcat(dat_string, ",");
@@ -115,5 +161,3 @@ void loop() {
 //  strcat(dat_string, ",");
 //  dtostrf(g.gyro.z, 3, 3, dat);
 //  strcat(dat_string, dat);
-  Serial.println(dat_string);
-}

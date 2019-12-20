@@ -110,20 +110,18 @@ void loop() {
   digitalWrite(13, LOW);
   if (!bmp.performReading()) return; // Attempt to read data from Altimeter
   if (mySerial.available()) { // Checking for GPS data
-    currentBuff = 0;
+    currentBuff = 0;                          // Start writing at the beggining of the char array
     while (mySerial.available()) {            // loop through while data is available
       gpsChar = mySerial.read();              // get character
       gps_buff[currentBuff] = gpsChar;        // append to aMessage
       currentBuff++;                          // bump message size
       delay(5);                               // just to slow the reads down a bit
     }
-//    dtostrf(bmp.temperature, 4, 2, temp);
-//    Serial.println(temp);
     if(!checksum(gps_buff)) return;
-//    Serial.print(gps_buff);
-    uint8_t stringsize = strlen(gps_buff);
-    if (stringsize != logfile.write((uint8_t *)gps_buff, stringsize)) error(5);  //write the string to the SD file
-    if (strstr(gps_buff, "RMC"))   logfile.flush();
+    Serial.print(gps_buff);
+//    uint8_t stringsize = strlen(gps_buff);
+//    if (stringsize != logfile.write((uint8_t *)gps_buff, stringsize)) error(5);  //write the string to the SD file
+//    if (strstr(gps_buff, "RMC"))   logfile.flush();
     gps_buff[0] = '\0';
   }
 }

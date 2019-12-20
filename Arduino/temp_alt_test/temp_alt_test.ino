@@ -61,9 +61,9 @@ void loop() {
   Serial.print(bmp.pressure / 100.0);
   Serial.println(" hPa");
 
-  Serial.print("Approx. Altitude = ");
-  Serial.print(bmp.readAltitude(SEALEVELPRESSURE_HPA));
-  Serial.println(" m");
+//  Serial.print("Approx. Altitude = ");
+//  Serial.print(bmp.readAltitude(SEALEVELPRESSURE_HPA));
+//  Serial.println(" m");
 
   Serial.println();
   delay(1000);

@@ -32,6 +32,7 @@ Adafruit_LSM9DS1 lsm = Adafruit_LSM9DS1();
 # define BUFF 100
 #define chipSelect 4
 #define ledPin 13
+#define savePin 8
 
 char aMessage[BUFF]; 
 char cha;
@@ -63,11 +64,12 @@ void setup() {
   Serial.begin(115200);
 //  while (!Serial);
   if (!bmp.begin()) {
-    digitalWrite(13, HIGH);
+    digitalWrite(savePin, HIGH);
     while (1);
   }
   if (!lsm.begin())
   {
+    digitalWrite(ledPin, HIGH);
     while (1);
   }
   accSensor();
@@ -104,6 +106,7 @@ void setup() {
 
 void loop() {
   if (mySerial.available()) {
+    digitalWrite(savePin, HIGH);
     for (int c = 0; c <BUFF;c++) aMessage[c]=0;      // clear aMessage in prep for new message
     messageSize = 0;                                 // set message size to zero
 
@@ -111,15 +114,20 @@ void loop() {
       cha = mySerial.read();                  // get character
       aMessage[messageSize]=cha;              // append to aMessage
       messageSize++;                          // bump message size
-      delay(10);                              // just to slow the reads down a bit
+      delay(5);                              // just to slow the reads down a bit
     } // while
+    if (!GPS.parse(aMessage))   // this also sets the newNMEAreceived() flag to false
+      return;
     aMessage[messageSize]='\n';               // set last character to a null
 //    Serial.println(aMessage);
     uint8_t stringsize = strlen(aMessage);
-    Serial.println(stringsize);
+//    Serial.println(stringsize);
     if (stringsize != logfile.write((uint8_t *)aMessage, stringsize))    //write the string to the SD file
         error(4);
-    if (strstr(aMessage, "RMC"))   logfile.flush();
+    if (strstr(aMessage, "RMC")){
+      logfile.flush();
+    }
+    digitalWrite(savePin, LOW);
   } // if available
   lsm.read();
   sensors_event_t a, m, g, temp;
@@ -128,36 +136,4 @@ void loop() {
 
 //  dtostrf(bmp.temperature * 9.0/5.0 + 32.0, 3, 3, dat);
 //  strcat(dat_string, dat);
-//  strcat(dat_string, ",");
-//  dtostrf(bmp.pressure / 100.0, 3, 3, dat);
-//  strcat(dat_string, dat);
-//  strcat(dat_string, ",");
-//  dtostrf(bmp.readAltitude(SEALEVELPRESSURE_HPA), 3, 3, dat);
-//  strcat(dat_string, dat);
-//  strcat(dat_string, ",");
-//  dtostrf(a.acceleration.x, 3, 3, dat);
-//  strcat(dat_string, dat);
-//  strcat(dat_string, ",");
-//  dtostrf(a.acceleration.y, 3, 3, dat);
-//  strcat(dat_string, dat);
-//  strcat(dat_string, ",");
-//  dtostrf(a.acceleration.z, 3, 3, dat);
-//  strcat(dat_string, dat);
-//  strcat(dat_string, ",");
-//  dtostrf(m.magnetic.x, 3, 3, dat);
-//  strcat(dat_string, dat);
-//  strcat(dat_string, ",");
-//  dtostrf(m.magnetic.y, 3, 3, dat);
-//  strcat(dat_string, dat);
-//  strcat(dat_string, ",");
-//  dtostrf(m.magnetic.z, 3, 3, dat);
-//  strcat(dat_string, dat);
-//  strcat(dat_string, ",");
-//  dtostrf(g.gyro.x, 3, 3, dat);
-//  strcat(dat_string, dat);
-//  strcat(dat_string, ",");
-//  dtostrf(g.gyro.y, 3, 3, dat);
-//  strcat(dat_string, dat);
-//  strcat(dat_string, ",");
-//  dtostrf(g.gyro.z, 3, 3, dat);
-//  strcat(dat_string, dat);
+//  strcat(dat_string, ","); 

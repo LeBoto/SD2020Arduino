@@ -1,9 +1,12 @@
-#include <SPI.h>
-#include <Adafruit_GPS.h>
 #include <SoftwareSerial.h>
+#include <Wire.h>
+#include <SPI.h>
 #include <SD.h>
 #include <avr/sleep.h>
-
+#include <Adafruit_GPS.h>
+#include <Adafruit_Sensor.h>
+#include "Adafruit_BMP3XX.h"
+#include <Adafruit_LSM9DS1.h>
 // Ladyada's logger modified by Bill Greiman to use the SdFat library
 //
 // This code shows how to listen to the GPS module in an interrupt
@@ -19,12 +22,19 @@
 // Fllybob added 10 sec logging option
 SoftwareSerial mySerial(9, 6);
 Adafruit_GPS GPS(&mySerial);
-
+// *******************TEMP/ALT SETUP*******************
+#define BMP_SCK A0
+#define BMP_MISO A1
+#define BMP_MOSI A2
+#define BMP_CS A3
+Adafruit_BMP3XX bmp(BMP_CS, BMP_MOSI, BMP_MISO,  BMP_SCK);
+// *******************ACCEL SETUP*******************
+//Adafruit_LSM9DS1 lsm = Adafruit_LSM9DS1();
 // Set GPSECHO to 'false' to turn off echoing the GPS data to the Serial console
 // Set to 'true' if you want to debug and listen to the raw GPS sentences
-#define GPSECHO  true
+#define GPSECHO  false
 /* set to true to only log to SD when GPS has a fix, for debugging, keep it false */
-#define LOG_FIXONLY false
+#define LOG_FIXONLY true
 
 // this keeps track of whether we're using the interrupt
 // off by default!
@@ -35,6 +45,8 @@ boolean usingInterrupt = false;
 // Set the pins used
 #define chipSelect 4
 #define ledPin 8
+char dat[10];
+char dat_string[150];
 
 File logfile;
 
@@ -52,14 +64,6 @@ uint8_t parseHex(char c) {
 
 // blink out an error code
 void error(uint8_t errno) {
-  /*
-  if (SD.errorCode()) {
-   putstring("SD error: ");
-   Serial.print(card.errorCode(), HEX);
-   Serial.print(',');
-   Serial.println(card.errorData(), HEX);
-   }
-   */
   while(1) {
     uint8_t i;
     for (i=0; i<errno; i++) {
@@ -72,6 +76,17 @@ void error(uint8_t errno) {
       delay(200);
     }
   }
+}
+
+void sensorSetup()
+{
+//  lsm.setupAccel(lsm.LSM9DS1_ACCELRANGE_16G);
+//  lsm.setupMag(lsm.LSM9DS1_MAGGAIN_16GAUSS);
+//  lsm.setupGyro(lsm.LSM9DS1_GYROSCALE_2000DPS);
+  // Set up oversampling and filter initialization
+  bmp.setTemperatureOversampling(BMP3_OVERSAMPLING_8X);
+  bmp.setPressureOversampling(BMP3_OVERSAMPLING_4X);
+  bmp.setIIRFilterCoeff(BMP3_IIR_FILTER_COEFF_3);
 }
 
 void setup() {
@@ -115,11 +130,21 @@ void setup() {
 
   // connect to the GPS at the desired rate
   GPS.begin(9600);
+  if (!bmp.begin()) {
+    digitalWrite(ledPin, HIGH);
+    while (1);
+  }
+//  if (!lsm.begin())
+//  {
+//    digitalWrite(ledPin, HIGH);
+//    while (1);
+//  }
+  sensorSetup();
 
   // uncomment this line to turn on RMC (recommended minimum) and GGA (fix data) including altitude
-  GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
+//  GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
   // uncomment this line to turn on only the "minimum recommended" data
-  //GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);
+  GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCONLY);
   // For logging data, we don't suggest using anything but either RMC only or RMC+GGA
   // to keep the log files at a reasonable size
   // Set the update rate
@@ -134,7 +159,7 @@ void setup() {
 #ifndef ESP8266 // Not on ESP8266
   useInterrupt(true);
 #endif
-
+//
   Serial.println("Ready!");
 }
 
@@ -169,14 +194,6 @@ void useInterrupt(boolean v) {
 #endif // ESP8266
 
 void loop() {
-  if (! usingInterrupt) {
-    // read data from the GPS in the 'main loop'
-    char c = GPS.read();
-    // if you want to debug, this is a good time to do it!
-    if (GPSECHO)
-      if (c) Serial.print(c);
-  }
-
   // if a sentence is received, we can check the checksum, parse it...
   if (GPS.newNMEAreceived()) {
     // a tricky thing here is if we print the NMEA sentence, or data
@@ -192,22 +209,28 @@ void loop() {
       return;  // we can fail to parse a sentence in which case we should just wait for another
 
     // Sentence parsed!
-    Serial.println("OK");
     if (LOG_FIXONLY && !GPS.fix) {
-      Serial.print("No Fix");
+      Serial.println("No Fix");
       return;
     }
-
     // Rad. lets log it!
-    Serial.println("Log");
-
+    Serial.print(bmp.temperature);
+//    strcpy(dat_string, stringptr);
+//    dtostrf(bmp.temperature, 5, 2, dat);
+//    strcat(dat_string, dat);
+//    strcat(dat_string, ",");
+//    dtostrf(bmp.pressure / 100.0, 5, 2, dat);
+//    strcat(dat_string, dat);
+//    strcat(dat_string, "\n");
     uint8_t stringsize = strlen(stringptr);
     if (stringsize != logfile.write((uint8_t *)stringptr, stringsize))    //write the string to the SD file
         error(4);
-    if (strstr(stringptr, "RMC") || strstr(stringptr, "GGA")){
-      Serial.println(stringptr);
+    if (strstr(stringptr, "RMC")){
+//      Serial.println(dat);
+//      Serial.println(stringptr);
+      Serial.print(dat_string);
       logfile.flush();
     }
-    Serial.println();
+//    Serial.println();
   }
 }

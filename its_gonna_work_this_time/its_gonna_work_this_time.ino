@@ -119,9 +119,9 @@ void loop() {
     }
     if(!checksum(gps_buff)) return;
     Serial.print(gps_buff);
-//    uint8_t stringsize = strlen(gps_buff);
-//    if (stringsize != logfile.write((uint8_t *)gps_buff, stringsize)) error(5);  //write the string to the SD file
-//    if (strstr(gps_buff, "RMC"))   logfile.flush();
+    uint8_t stringsize = strlen(gps_buff);
+    if (stringsize != logfile.write((uint8_t *)gps_buff, stringsize)) error(5);  //write the string to the SD file
+    if (strstr(gps_buff, "RMC"))   logfile.flush();
     gps_buff[0] = '\0';
   }
 }
